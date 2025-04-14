@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import { Checkbox } from 'antd';
 import * as THREE from 'three';
 
 // Компонент карточки с информацией о коробке
@@ -35,7 +36,7 @@ const BoxDetailCard = ({ box, layerIndex, onClose }) => {
       <h2>Артикул {box.article_id}</h2>
       <p><strong>Вес: {box.weight_kg} кг</strong></p>
       <p><strong>Вращение: {box.can_rotate ? 'Разрешено' : 'Запрещено'}</strong></p>
-      <p><strong>Макс. нагрузка: {box.max_load/1000} кг</strong></p>
+      <p><strong>Макс. нагрузка: {box.max_load / 1000} кг</strong></p>
       <h2>Позиция:</h2>
       <p><strong>Слой:</strong> {layerIndex}</p>
       <p><strong>Размеры (Д × Ш × В):</strong> {length} × {width} × {height}</p>
@@ -49,15 +50,13 @@ const BoxDetailCard = ({ box, layerIndex, onClose }) => {
   );
 };
 
-// Генерация случайного цвета (один раз)
+// Генерация случайного цвета
 const generateRandomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16);
 
 // Компонент для отрисовки одной коробки с ребрами
 const BoxWithEdges = ({ box, layerIndex, uniqueKey, onClick, color, isSelected }) => {
   const { length, width, height } = box.dimensions;
 
-  // В THREE.js BoxGeometry строится от центра, а позиция в данных – нижний угол.
-  // Чтобы установить центр, сдвигаем позицию на половину размеров.
   const adjustedPosition = [
     box.position.x + width / 2,
     box.position.z + height / 2,
@@ -67,7 +66,6 @@ const BoxWithEdges = ({ box, layerIndex, uniqueKey, onClick, color, isSelected }
   const geometry = new THREE.BoxGeometry(width, height, length);
   const edges = new THREE.EdgesGeometry(geometry);
 
-  // Материал для ребер; если коробка выбрана, красные и толще.
   const edgeMaterial = new THREE.LineBasicMaterial({
     color: isSelected ? 'red' : 'black',
     linewidth: isSelected ? 10 : 2,
@@ -90,41 +88,43 @@ const BoxWithEdges = ({ box, layerIndex, uniqueKey, onClick, color, isSelected }
 };
 
 // Главный компонент визуализации паллет
-const PalletVisualizer = ({ pallets, selectedPalletIndex }) => {
+const PalletVisualizer = ({ pallets, selectedPalletIndex, setSelectedPalletIndex }) => {
   const [selectedBoxData, setSelectedBoxData] = useState(null);
-  const [boxColors, setBoxColors] = useState({}); // Хранение уникальных цветов, ключ - уникальный идентификатор коробки
+  const [boxColors, setBoxColors] = useState({});
+  const [visibleLayers, setVisibleLayers] = useState({}); // Состояние для управления видимостью слоев
 
-  // При первом рендере выбранной паллеты назначаем каждой коробке уникальный цвет
   useEffect(() => {
     const newColors = {};
     pallets[selectedPalletIndex]?.layers.forEach(layer => {
       layer.boxes.forEach((box, index) => {
-        // Формируем уникальный ключ: номер слоя плюс индекс в массиве
         const key = `${layer.layer_index}_${index}`;
         newColors[key] = generateRandomColor();
       });
     });
     setBoxColors(newColors);
+
+    // Инициализируем видимость слоев (все слои видимы по умолчанию)
+    const newVisibleLayers = {};
+    pallets[selectedPalletIndex]?.layers.forEach((layer) => {
+      newVisibleLayers[layer.layer_index] = true;
+    });
+    setVisibleLayers(newVisibleLayers);
   }, [pallets, selectedPalletIndex]);
 
-  // Функция обработки клика на коробку: сохраняем данные, включая уникальный ключ и номер слоя
   const handleBoxClick = (box, layerIndex, uniqueKey) => {
     setSelectedBoxData({ ...box, layerIndex, uniqueKey });
   };
 
-  useEffect(() => {
-    const pallet = pallets[selectedPalletIndex];
-    if (pallet) {
-      console.log(`Паллет ${pallet.pallet_index} содержит ${pallet.layers.length} слоев`);
-      pallet.layers.forEach(layer =>
-        console.log(`Слой ${layer.layer_index} содержит ${layer.boxes.length} коробок`)
-      );
-    }
-  }, [pallets, selectedPalletIndex]);
+  // Функция для обработки изменения состояния видимости слоя
+  const handleLayerVisibilityChange = (layerIndex, e) => {
+    setVisibleLayers(prevState => ({
+      ...prevState,
+      [layerIndex]: e.target.checked,
+    }));
+  };
 
   return (
     <div style={{ position: 'relative', height: '600px', border: '1px solid #ddd' }}>
-      {/* Если выбрана коробка, отображаем карточку с данными */}
       {selectedBoxData && (
         <BoxDetailCard
           box={selectedBoxData}
@@ -132,35 +132,50 @@ const PalletVisualizer = ({ pallets, selectedPalletIndex }) => {
           onClose={() => setSelectedBoxData(null)}
         />
       )}
+      <div style={{ marginBottom: '10px' }}>
+        {pallets[selectedPalletIndex]?.layers.map((layer) => (
+          <Checkbox
+            key={layer.layer_index}
+            checked={visibleLayers[layer.layer_index]}
+            onChange={(e) => handleLayerVisibilityChange(layer.layer_index, e)}
+          >
+            Слой {layer.layer_index}
+          </Checkbox>
+        ))}
+      </div>
+
       <Canvas camera={{ position: [2000, 2000, 2000], fov: 50, near: 100, far: 5000 }}>
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
         <OrbitControls />
 
-        {pallets[selectedPalletIndex]?.layers.map((layer) => (
-          <group key={layer.layer_index}>
-            {layer.boxes.map((box, index) => {
-              const uniqueKey = `${layer.layer_index}_${index}`;
-              const boxColor = boxColors[uniqueKey];
-              const isSelected = selectedBoxData && selectedBoxData.uniqueKey === uniqueKey;
-              return (
-                <BoxWithEdges
-                  key={uniqueKey}
-                  box={box}
-                  layerIndex={layer.layer_index}
-                  uniqueKey={uniqueKey}
-                  onClick={handleBoxClick}
-                  color={boxColor}
-                  isSelected={isSelected}
-                />
-              );
-            })}
-          </group>
-        ))}
+        {pallets[selectedPalletIndex]?.layers.map((layer) => {
+          // Пропускаем слой, если он выключен
+          if (!visibleLayers[layer.layer_index]) return null;
 
-        {/* Пол для ориентации */}
+          return (
+            <group key={layer.layer_index}>
+              {layer.boxes.map((box, index) => {
+                const uniqueKey = `${layer.layer_index}_${index}`;
+                const boxColor = boxColors[uniqueKey];
+                const isSelected = selectedBoxData && selectedBoxData.uniqueKey === uniqueKey;
+                return (
+                  <BoxWithEdges
+                    key={uniqueKey}
+                    box={box}
+                    layerIndex={layer.layer_index}
+                    uniqueKey={uniqueKey}
+                    onClick={handleBoxClick}
+                    color={boxColor}
+                    isSelected={isSelected}
+                  />
+                );
+              })}
+            </group>
+          );
+        })}
         <mesh position={[500, -25, 600]}>
-          <boxGeometry args={[1000,40,1200]} />
+          <boxGeometry args={[1000, 40, 1200]} />
           <meshStandardMaterial color="brown" />
         </mesh>
       </Canvas>

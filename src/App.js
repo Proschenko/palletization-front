@@ -76,7 +76,11 @@ function App() {
                 </Select>
               </div>
             )}
-            <PalletVisualizer pallets={pallets} selectedPalletIndex={selectedPalletIndex} />
+            <PalletVisualizer
+              pallets={pallets}
+              selectedPalletIndex={selectedPalletIndex}
+              setSelectedPalletIndex={setSelectedPalletIndex} // Передаем setSelectedPalletIndex
+            />
           </div>
         )}
       </Content>
