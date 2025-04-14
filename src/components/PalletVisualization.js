@@ -8,8 +8,6 @@ const BoxDetailCard = ({ box, layerIndex, onClose }) => {
   const { x, y, z } = box.position;
   const { length, width, height } = box.dimensions;
 
-  // Предполагаем, что позиция коробки указывает на нижний левый угол
-  // и углы рассчитываются исходя из этих значений.
   const corners = [
     [x, y, z],
     [x + width, y, z],
@@ -34,10 +32,13 @@ const BoxDetailCard = ({ box, layerIndex, onClose }) => {
       zIndex: 10,
     }}>
       <button onClick={onClose} style={{ float: 'right' }}>X</button>
-      <h4>Коробка {box.article_id}</h4>
+      <h2>Артикул {box.article_id}</h2>
+      <p><strong>Вес: {box.weight_kg} кг</strong></p>
+      <p><strong>Вращение: {box.can_rotate ? 'Разрешено' : 'Запрещено'}</strong></p>
+      <p><strong>Макс. нагрузка: {box.max_load/1000} кг</strong></p>
+      <h2>Позиция:</h2>
       <p><strong>Слой:</strong> {layerIndex}</p>
       <p><strong>Размеры (Д × Ш × В):</strong> {length} × {width} × {height}</p>
-      <p><strong>Позиция (X, Y, Z):</strong> {x}, {y}, {z}</p>
       <p><strong>Углы (8 точек):</strong></p>
       <ul>
         {corners.map(([cx, cy, cz], i) => (
