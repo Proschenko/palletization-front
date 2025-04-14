@@ -54,7 +54,7 @@ function App() {
               showUploadList={false}
             >
               <Button icon={<UploadOutlined />} size="large">
-                Загрузить CSV файл
+                Загрузить CSV файл c заказом
               </Button>
             </Upload>
           </div>
